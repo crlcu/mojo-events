@@ -5,16 +5,17 @@ use Mojo::Loader qw(find_modules load_class);
 use Mojo::Server;
 
 has app => sub { Mojo::Server->new->build_app('Mojo::HelloWorld') }, weak => 1;
+has registered => sub { [] };
 has namespaces => sub { [] };
 
-=head2 startup
+=head2 new
 
-Start listeners
+Initialize listeners
 
 =cut
 
-sub startup {
-    my ($self, $dispatcher) = @_;
+sub new {
+    my $self = shift->SUPER::new(@_);
 
     my @namespaces = @{ $self->namespaces };
     push(@namespaces, 'Mojo::Events::Listeners');
@@ -32,13 +33,27 @@ sub startup {
             # Initialize listener
             my $listener = $loaded->new(app => $self->app);
             
-            $dispatcher->on($listener->event => sub {
-                my $self = shift;
-                
-                return $listener->handle(@_);
-            });
+            push(@{ $self->registered }, $listener);
         }
     }
+
+    return $self;
+}
+
+=head2 register
+
+Append new listener
+
+=cut
+
+sub register {
+    my ($self, $listener) = @_;
+
+    if (!$listener->isa('Mojo::Events::Listener')) {
+        warn "Invalid listener";
+    }
+
+    push(@{ $self->registered }, $listener);
 }
 
 =head2 _listener
